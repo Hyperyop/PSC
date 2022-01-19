@@ -3,7 +3,7 @@ from scipy.ndimage.filters import convolve
 import cv2
 from scipy import misc
 import numpy as np
-
+from PIL import Image, ImageEnhance
 from math import tan
 
 
@@ -49,7 +49,7 @@ class cannyEdgeDetector:
 
         Ix = ndimage.filters.convolve(img, Kx)
         Iy = ndimage.filters.convolve(img, Ky)
-        return np.sign(Ix)*np.sign(Iy)
+        return np.sign(Ix)*np.sign(Iy)#*(Ix*Ix+Iy*Iy)
 
     
 
@@ -147,21 +147,35 @@ class cannyEdgeDetector:
 
         return self.imgs_final
     
-image = cv2.imread("resized_images3/1002.png",0)
-image=image.astype(np.float32)
+image = Image.open("resized_images3/3.png")
+image=image.resize((128,128),Image.BICUBIC)
+img=image
+image=np.asarray(img , dtype=np.float32)
+image=np.copy(image)
 image/=255
-detector= cannyEdgeDetector(image,sigma = 20, lowthreshold=0.2, highthreshold=0.3)
+
+detector= cannyEdgeDetector(image,sigma = 20, lowthreshold=0.1, highthreshold=0.2)
 image_signe = detector.grad(detector.img)
 from matplotlib import pyplot as plt
 image_canny=detector.detect()
-image_canny=np.transpose(image_canny)
-image=np.rot90(image,k=1)
-image_canny=np.rot90(image_canny,k=3)
-plt.imshow(image,cmap = 'gray')
 
+image_canny=np.transpose(image_canny)
+image_canny=np.flipud(image_canny)
+#print(image_canny.shape)
+image_canny=np.rot90(image_canny,k=3)
+
+#image_signe=np.expand_dims(image_signe, 2)
+print(np.transpose(image_signe).shape)
+#image_canny=image_canny*np.rot90(image_signe,k=1)
+#image_signe=image_canny
+image_canny=np.reshape(image_canny, (128,128))
+
+image_signe=np.transpose(image_signe)
+plt.imshow(image_canny,cmap = 'gray')
+image_canny=np.transpose(image_canny)
 class unionfind:
     def __init__(self,n):
-        self.uf=np.zeros([n, n, 3],dtype=np.uint8)
+        self.uf=np.zeros([n, n, 3],dtype=int)
         for i in range(n):
             for j in range(n):
                 self.uf[i][j][0] = i
@@ -241,20 +255,20 @@ class unionfind:
 #                 a.append((i+k, j+l))
     
 #     return a
-
-uf=unionfind(224)
-for i in range(224):
-    for j in range(224):
-        if image_signe[i][j] == 0 or image_canny[i][j][0] == 0:
+dim=128
+uf=unionfind(dim)
+for i in range(dim):
+    for j in range(dim):
+        if image_signe[i][j] == 0 or image_canny[i][j] == 0:
             continue
-        for v in uf.adjacent(i, j, 224):
-            if image_signe[i][j] == image_signe[v[0]][v[1]]:
+        for v in uf.adjacent(i, j,dim):
+            if image_signe[i][j]== image_signe[v[0]][v[1]]:
                 uf.union(i, j, v[0], v[1])
 
 dico = {}
 
-for i in range(224):
-    for j in range(224):
+for i in range(dim):
+    for j in range(dim):
         k, l = uf.find(i, j)
         
         if (k, l) in dico:
@@ -270,7 +284,7 @@ for i in range(len(arcs)):
         arcs[i] = arcs[i][1]
     else:
         arcs[i] = arcs[i][1][1:]
-
+#print(arcs)
 #Algorithm 1 : arc dont le D est +
 
 def getConvexity1(arc):
@@ -299,7 +313,7 @@ def getConvexity1(arc):
 #Algoritm 2 ; arc dont le D est - 
 
 def getConvexity2(arc):
-    arc=sorted([(a[0],224-a[1])for a in arc], key=lambda k:[k[0],k[1]])
+    arc=sorted([(a[0],dim-a[1])for a in arc], key=lambda k:[k[0],k[1]])
     y_sort=sorted(arc,key=lambda k:[k[1],k[0]])
     N=len(arc)
     left=arc[0]
@@ -326,12 +340,12 @@ def getConvexity2(arc):
         return 0
     
 quadrant = [[] for i in range(4)]
-
+arc_length_min=50
 for i in range(len(arcs)):
     a = int(image_signe[arcs[i][0][0]][arcs[i][0][1]])
     b = 0
     
-    if a == 1 and len(arcs[i]) > 100:
+    if a == 1 and len(arcs[i]) > arc_length_min:
         
         b = getConvexity1(arcs[i])
         
@@ -341,7 +355,7 @@ for i in range(len(arcs)):
         if b==-1: 
             #plt.plot([a[0] for a in arcs[i]], [a[1] for a in arcs[i]], '.')
             quadrant[2].append(arcs[i])
-    if a == -1 and len(arcs[i]) > 100:
+    if a == -1 and len(arcs[i]) > arc_length_min:
         #flip along the y axis and sort ( change coordinate system)
         #arcs[i]=sorted([(a[0],224-a[1])for a in arcs[i]], key=lambda k:[k[0],k[1]])
         b = getConvexity2(arcs[i])
@@ -356,7 +370,7 @@ for i in range(len(arcs)):
         #quadrant[(a+1)+ (b+1)//2].append(arcs[i])
         #plt.plot(arcs[i])
         #plt.plot([a[0] for a in arcs[i]], [a[1] for a in arcs[i]], '.')
-    
+#print(quadrant)
 arc_test = [(4,0),(4,1),(3,2),(2,2),(2,3),(2,4),(1,4),(0,4)]
 arc_test2 = [(0,4),(1,4),(2,4),(2,3),(2,2),(3,2),(4,1),(4,0)]
 arc_test3= [(0,0),(0,1),(1,0),(2,0),(2,1),(2,2),(3,2),(4,3),(4,4)]
