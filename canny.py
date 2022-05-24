@@ -726,7 +726,7 @@ class ellipseDetector:
                     result+=1
         if not self.test:
             print("La longueur du périmetre est {}".format(self.dim**2*result/accuracy**2))
-        return result
+        return self.dim**2*result/accuracy**2
     def is_in_ellipse_cartesian(self, x, y): #works because a = 1 > 0
         return self.p[0]*x**2 + self.p[2]*y**2 + self.p[1]*x*y + self.p[3]*2*x + self.p[4]*2*y + self.p[5] <= 0
 
